@@ -1,5 +1,6 @@
 from __future__ import division
 import svgwrite
+import math
 
 START = '^'
 END   = '$'
@@ -99,11 +100,61 @@ class Diagram:
     def save(self):
         self.dwg.save()
 
-diagram = Diagram()
+class CircleDiagram:
+    def __init__(self):
+        self.ring_depth = 100
+        self.ring_count  = 0
+        self.text_height = 10
+        MAX_RINGS = 20
+        PADDING = 100
+        size = (MAX_RINGS * self.ring_depth + PADDING) * 2
+        self.dwg = svgwrite.Drawing('test.svg', profile='tiny', size=(size, size))
+        self.center = (size/2, size/2)
+
+    def calc_coords(self, r, a):
+        return (self.center[0] + math.sin(a) * r, self.center[1] + -math.cos(a) * r)
+
+    def draw_segment(self, letter, level, start_angle, end_angle):
+        d=self.dwg
+
+        r1 = self.ring_depth * level
+        r2 = self.ring_depth * (level + 1)
+
+        start_x1, start_y1 = self.calc_coords(r1, start_angle)
+        start_x2, start_y2 = self.calc_coords(r2, start_angle)
+        d.add(d.line((start_x1, start_y1), (start_x2, start_y2), stroke='black'))
+
+        end_x1, end_y1 = self.calc_coords(r1, end_angle)
+        end_x2, end_y2 = self.calc_coords(r2, end_angle)
+        d.add(d.line((end_x1, end_y1), (end_x2, end_y2), stroke='black'))
+
+        letter_x, letter_y = self.calc_coords((r1 + r2) / 2, (start_angle + end_angle) / 2)
+        d.add(d.text(letter, insert=(letter_x+2, letter_y+2), font_size = "10px"))
+
+    def draw_ring(self, level):
+        d=self.dwg
+        d.add(d.circle(center=self.center, r = self.ring_depth * level, stroke='black', fill='none'))
+
+    def add_ring(self, parts):
+        level = self.ring_count
+        self.draw_ring(level)
+
+        for p in parts:
+            letter      = p[0]
+            start_angle = p[2] * math.pi * 2
+            end_angle   = (p[2] + p[1]) * math.pi * 2
+            self.draw_segment(letter, level, start_angle, end_angle)
+
+        self.ring_count += 1
+
+    def save(self):
+        self.dwg.save()
+
+diagram = CircleDiagram()
 
 dfs(tree.root, 0, 1, 0)
 tier_i=0
 while tiers.has_key(tier_i):
-    diagram.add_bar(tiers[tier_i])
+    diagram.add_ring(tiers[tier_i])
     tier_i += 1
 diagram.save()
