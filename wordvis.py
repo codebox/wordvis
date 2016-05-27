@@ -10,9 +10,6 @@ class Node:
         self.count = 0
         self.children = {}
 
-    def add_child(self, letter):
-        self.children.put()
-
 class EndNode:
     def __init__(self):
         self.letter = END
@@ -23,9 +20,9 @@ class Tree:
     def __init__(self):
         self.root = Node(START)
 
-    def add(self, word):
-        def add_chars(parent_node, chars):
-            parent_node.count += 1
+    def add(self, word, count):
+        def add_chars(parent_node, chars, count):
+            parent_node.count += count
             if len(chars) == 0:
                 parent_node.children[END] = EndNode()
                 return
@@ -34,9 +31,9 @@ class Tree:
             if not parent_node.children.has_key(first_letter):
                 parent_node.children[first_letter] = Node(first_letter)
 
-            add_chars(parent_node.children[first_letter], chars[1:])
+            add_chars(parent_node.children[first_letter], chars[1:], count)
 
-        add_chars(self.root, word)
+        add_chars(self.root, word, count)
 
     def __str__(self):
         lines = []
@@ -52,7 +49,8 @@ class Tree:
 
 tree = Tree()
 for line in open('words.txt').readlines():
-    tree.add(line.lower().strip())
+    w,c = line.split('\t')
+    tree.add(w.lower().strip(), int(c))
 
 tiers = {}
 

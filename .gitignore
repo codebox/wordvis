@@ -1,3 +1,6 @@
 .idea
 .DS_Store
 *.iml
+env
+*.svg
+*.txt
