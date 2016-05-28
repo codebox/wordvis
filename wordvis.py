@@ -4,6 +4,10 @@ import math
 
 START = '^'
 END   = '$'
+FILL_COLOUR='#43C4EB'
+LINE_COLOUR='white'
+TEXT_COLOUR='black'
+FONT_SIZE='10px'
 
 class Node:
     def __init__(self, letter):
@@ -86,7 +90,7 @@ class Diagram:
         d.add(d.line((x1, y2), (x2, y2), stroke=svgwrite.rgb(10, 10, 16, '%')))
         d.add(d.line((x2, y2), (x2, y1), stroke=svgwrite.rgb(10, 10, 16, '%')))
         d.add(d.line((x2, y1), (x1, y1), stroke=svgwrite.rgb(10, 10, 16, '%')))
-        d.add(d.text(letter, insert=((x1+x2)/2 - 2, (y1+y2)/2 + 2), font_size = "10px"))
+        d.add(d.text(letter, insert=((x1+x2)/2 - 2, (y1+y2)/2 + 2), font_size = FONT_SIZE, font_color=TEXT_COLOUR))
 
     def add_bar(self, parts):
         for p in parts:
@@ -105,7 +109,7 @@ class CircleDiagram:
         self.ring_depth = 100
         self.ring_count  = 0
         self.text_height = 10
-        MAX_RINGS = 20
+        MAX_RINGS = 12
         PADDING = 100
         size = (MAX_RINGS * self.ring_depth + PADDING) * 2
         self.dwg = svgwrite.Drawing('test.svg', profile='tiny', size=(size, size))
@@ -113,6 +117,7 @@ class CircleDiagram:
 
     def calc_coords(self, r, a):
         return (self.center[0] + math.sin(a) * r, self.center[1] + -math.cos(a) * r)
+
 
     def draw_segment(self, letter, level, start_angle, end_angle):
         d=self.dwg
@@ -122,14 +127,20 @@ class CircleDiagram:
 
         start_x1, start_y1 = self.calc_coords(r1, start_angle)
         start_x2, start_y2 = self.calc_coords(r2, start_angle)
-        d.add(d.line((start_x1, start_y1), (start_x2, start_y2), stroke='black'))
-
         end_x1, end_y1 = self.calc_coords(r1, end_angle)
         end_x2, end_y2 = self.calc_coords(r2, end_angle)
-        d.add(d.line((end_x1, end_y1), (end_x2, end_y2), stroke='black'))
+
+        d.add(d.path(d="M{0} {1} A {2} {3}, 0, 0, 1, {4} {5} L {6} {7} A {8} {9}, 0, 0, 0, {10} {11} Z".format(
+                start_x1, start_y1,
+                r1, r1,
+                end_x1, end_y1,
+                end_x2, end_y2,
+                r2, r2,
+                start_x2, start_y2
+            ), fill=FILL_COLOUR, stroke=LINE_COLOUR))
 
         letter_x, letter_y = self.calc_coords((r1 + r2) / 2, (start_angle + end_angle) / 2)
-        d.add(d.text(letter, insert=(letter_x+2, letter_y+2), font_size = "10px"))
+        d.add(d.text(letter.upper(), insert=(letter_x-2, letter_y+2), font_size = "10px"))
 
     def draw_ring(self, level):
         d=self.dwg
@@ -137,13 +148,13 @@ class CircleDiagram:
 
     def add_ring(self, parts):
         level = self.ring_count
-        self.draw_ring(level)
+        #self.draw_ring(level)
 
         for p in parts:
             letter      = p[0]
             start_angle = p[2] * math.pi * 2
             end_angle   = (p[2] + p[1]) * math.pi * 2
-            self.draw_segment(letter, level, start_angle, end_angle)
+            self.draw_segment(letter, level+1, start_angle, end_angle)
 
         self.ring_count += 1
 
@@ -151,10 +162,10 @@ class CircleDiagram:
         self.dwg.save()
 
 diagram = CircleDiagram()
-
 dfs(tree.root, 0, 1, 0)
-tier_i=0
+tier_i=1
 while tiers.has_key(tier_i):
     diagram.add_ring(tiers[tier_i])
     tier_i += 1
 diagram.save()
+
