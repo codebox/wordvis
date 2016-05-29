@@ -1,13 +1,46 @@
 from __future__ import division
 import svgwrite
 import math
+import colorsys
+import sys
+
+'''
+Word Visualiser
+---------------
+
+This utility reads a text file containing word frequency data, and generates a Sunburst Chart illustrating the frequency
+with which letters appear at each position within the words.
+
+Each line of the input file must contain a single word, followed by a tab character, followed by a numeric value.
+For example:
+
+THE	53097401461
+OF	30966074232
+AND	22632024504
+TO	19347398077
+
+To run the utility supply the path to the word file, and the path to the svg file as follows:
+
+    python wordvis.py words.txt word_chart.svg
+
+
+Copyright 2016 Rob Dawson
+
+    https://github.com/codebox/wordvis
+    http://codebox.org.uk/pages/word-visualiser
+'''
 
 START = '^'
-END   = '$'
-FILL_COLOUR='#43C4EB'
-LINE_COLOUR='white'
-TEXT_COLOUR='black'
-FONT_SIZE='10px'
+END = '$'
+LINE_COLOUR = 'white'
+FONT_COLOUR = '#555555'
+FONT_SIZE = '10px'
+FONT_NAME = 'Arial'
+COLOUR_LIGHTNESS = 0.85
+MAX_RINGS = 12
+RING_DEPTH = 100
+LETTER_SPACING = 0.05   # smaller values will result in more letters on the chart
+
 
 class Node:
     def __init__(self, letter):
@@ -15,11 +48,13 @@ class Node:
         self.count = 0
         self.children = {}
 
+
 class EndNode:
     def __init__(self):
         self.letter = END
         self.count = 1
         self.children = {}
+
 
 class Tree:
     def __init__(self):
@@ -33,102 +68,38 @@ class Tree:
                 return
 
             first_letter = chars[0]
-            if not parent_node.children.has_key(first_letter):
+            if first_letter not in parent_node.children:
                 parent_node.children[first_letter] = Node(first_letter)
 
             add_chars(parent_node.children[first_letter], chars[1:], count)
 
         add_chars(self.root, word, count)
 
-    def __str__(self):
-        lines = []
-        INDENT = '  '
-
-        def str_node(node, i):
-            lines.append(i * INDENT + node.letter + ':' + str(node.count))
-            for c in node.children.values():
-                str_node(c, i+1)
-
-        str_node(self.root, 0)
-        return '\n'.join(lines)
-
-tree = Tree()
-for line in open('words.txt').readlines():
-    w,c = line.split('\t')
-    tree.add(w.lower().strip(), int(c))
-
-tiers = {}
-
-def on_node(node, depth, size, offset):
-    if isinstance(node, EndNode):
-        return
-    if not tiers.has_key(depth):
-        tiers[depth] = []
-    tiers[depth].append([node.letter,size, offset])
-
-def dfs(node, depth, node_size, offset):
-    node_count = node.count
-    o=offset
-    for child in node.children.values():
-        s = node_size * child.count/node_count
-        dfs(child, depth + 1, s, o)
-        o += s
-
-    on_node(node, depth, node_size, offset)
-
-class Diagram:
-    def __init__(self):
-        self.bar_height = 20
-        self.bar_width  = 20000
-        self.bar_count  = 0
-        self.text_height = 10
-        self.dwg = svgwrite.Drawing('test.svg', profile='tiny', size=(self.bar_width, self.bar_height * 10))
-
-    def box(self, letter, x1, x2, y1, y2):
-        d=self.dwg
-        d.add(d.line((x1, y1), (x1, y2), stroke=svgwrite.rgb(10, 10, 16, '%')))
-        d.add(d.line((x1, y2), (x2, y2), stroke=svgwrite.rgb(10, 10, 16, '%')))
-        d.add(d.line((x2, y2), (x2, y1), stroke=svgwrite.rgb(10, 10, 16, '%')))
-        d.add(d.line((x2, y1), (x1, y1), stroke=svgwrite.rgb(10, 10, 16, '%')))
-        d.add(d.text(letter, insert=((x1+x2)/2 - 2, (y1+y2)/2 + 2), font_size = FONT_SIZE, font_color=TEXT_COLOUR))
-
-    def add_bar(self, parts):
-        for p in parts:
-            offset = p[2]
-            width  = p[1]
-            letter = p[0]
-            self.box(letter, offset * self.bar_width, (offset+width) * self.bar_width, self.bar_count * self.bar_height, (self.bar_count +1 ) * self.bar_height)
-
-        self.bar_count += 1
-
-    def save(self):
-        self.dwg.save()
 
 class CircleDiagram:
-    def __init__(self):
-        self.ring_depth = 100
-        self.ring_count  = 0
-        self.text_height = 10
-        MAX_RINGS = 12
-        PADDING = 100
-        size = (MAX_RINGS * self.ring_depth + PADDING) * 2
-        self.dwg = svgwrite.Drawing('test.svg', profile='tiny', size=(size, size))
+    def __init__(self, svg_file):
+        self.ring_count = 0
+        size = MAX_RINGS * RING_DEPTH * 2
+        self.dwg = svgwrite.Drawing(svg_file, profile='tiny', size=(size, size))
         self.center = (size/2, size/2)
 
-    def calc_coords(self, r, a):
-        return (self.center[0] + math.sin(a) * r, self.center[1] + -math.cos(a) * r)
+    def _colour_for_letter(self, letter):
+        rgb = colorsys.hls_to_rgb((ord(letter) - ord('a')) / 26, COLOUR_LIGHTNESS, 1)
+        return '#' + ''.join('%02x' % i for i in map(lambda x: x * 255, rgb))
 
+    def _calc_coords(self, r, a):
+        return self.center[0] + math.sin(a) * r, self.center[1] + -math.cos(a) * r
 
-    def draw_segment(self, letter, level, start_angle, end_angle):
-        d=self.dwg
+    def _draw_segment(self, letter, level, start_angle, end_angle):
+        d = self.dwg
 
-        r1 = self.ring_depth * level
-        r2 = self.ring_depth * (level + 1)
+        r1 = RING_DEPTH * level
+        r2 = RING_DEPTH * (level + 1)
 
-        start_x1, start_y1 = self.calc_coords(r1, start_angle)
-        start_x2, start_y2 = self.calc_coords(r2, start_angle)
-        end_x1, end_y1 = self.calc_coords(r1, end_angle)
-        end_x2, end_y2 = self.calc_coords(r2, end_angle)
+        start_x1, start_y1 = self._calc_coords(r1, start_angle)
+        start_x2, start_y2 = self._calc_coords(r2, start_angle)
+        end_x1, end_y1 = self._calc_coords(r1, end_angle)
+        end_x2, end_y2 = self._calc_coords(r2, end_angle)
 
         d.add(d.path(d="M{0} {1} A {2} {3}, 0, 0, 1, {4} {5} L {6} {7} A {8} {9}, 0, 0, 0, {10} {11} Z".format(
                 start_x1, start_y1,
@@ -137,35 +108,88 @@ class CircleDiagram:
                 end_x2, end_y2,
                 r2, r2,
                 start_x2, start_y2
-            ), fill=FILL_COLOUR, stroke=LINE_COLOUR))
+            ), fill=self._colour_for_letter(letter), stroke=LINE_COLOUR))
 
-        letter_x, letter_y = self.calc_coords((r1 + r2) / 2, (start_angle + end_angle) / 2)
-        d.add(d.text(letter.upper(), insert=(letter_x-2, letter_y+2), font_size = "10px"))
+    def _draw_letter(self, letter, level, start_angle, end_angle):
+        d = self.dwg
 
-    def draw_ring(self, level):
-        d=self.dwg
-        d.add(d.circle(center=self.center, r = self.ring_depth * level, stroke='black', fill='none'))
+        r1 = RING_DEPTH * level
+        r2 = RING_DEPTH * (level + 1)
+
+        letter_x, letter_y = self._calc_coords((r1 + r2) / 2, (start_angle + end_angle) / 2)
+        d.add(d.text(letter.upper(), insert=(letter_x-2, letter_y+3),
+                     font_size=FONT_SIZE, fill=FONT_COLOUR, font_family=FONT_NAME))
 
     def add_ring(self, parts):
         level = self.ring_count
-        #self.draw_ring(level)
 
+        # Draw all the segments first
         for p in parts:
-            letter      = p[0]
+            letter = p[0]
             start_angle = p[2] * math.pi * 2
-            end_angle   = (p[2] + p[1]) * math.pi * 2
-            self.draw_segment(letter, level+1, start_angle, end_angle)
+            end_angle = (p[2] + p[1]) * math.pi * 2
+            self._draw_segment(letter, level+1, start_angle, end_angle)
+
+        # Draw letters on top of segments so we can read them
+        for p in parts:
+            letter = p[0]
+            start_angle = p[2] * math.pi * 2
+            end_angle = (p[2] + p[1]) * math.pi * 2
+            if (end_angle - start_angle) * (level+1) > LETTER_SPACING:
+                self._draw_letter(letter, level+1, start_angle, end_angle)
 
         self.ring_count += 1
 
     def save(self):
         self.dwg.save()
 
-diagram = CircleDiagram()
-dfs(tree.root, 0, 1, 0)
-tier_i=1
-while tiers.has_key(tier_i):
-    diagram.add_ring(tiers[tier_i])
-    tier_i += 1
-diagram.save()
 
+class Rings:
+    def __init__(self, tree):
+        self.tiers = {}
+        self._dfs(tree.root, 0, 1, 0)
+
+    def _on_node(self, node, depth, size, offset):
+        if isinstance(node, EndNode):
+            return
+
+        if depth not in self.tiers:
+            self.tiers[depth] = []
+
+        self.tiers[depth].append([node.letter, size, offset])
+
+    def _dfs(self, node, depth, node_size, offset):
+        node_count = node.count
+        child_offset = offset
+
+        for key in sorted(node.children.keys()):
+            child = node.children[key]
+            child_size = node_size * child.count/node_count
+            self._dfs(child, depth + 1, child_size, child_offset)
+            child_offset += child_size
+
+        self._on_node(node, depth, node_size, offset)
+
+    def get(self):
+        return self.tiers.values()[1:]
+
+args = sys.argv
+if len(args) != 3:
+    print "Usage: python {0} <word file> <svg file>".format(args[0])
+    sys.exit(1)
+
+word_file = args[1]
+svg_file = args[2]
+
+tree = Tree()
+for line in open(word_file).readlines():
+    word, count = line.split('\t')
+    tree.add(word.lower().strip(), int(count))
+
+rings = Rings(tree)
+diagram = CircleDiagram(svg_file)
+
+for ring in rings.get():
+    diagram.add_ring(ring)
+
+diagram.save()
