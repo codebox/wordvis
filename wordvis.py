@@ -193,20 +193,17 @@ class CircleDiagram:
         level = self.ring_count
 
         # Draw all the segments first
-        for p in parts:
-            letter = p[0]
-            start_angle = p[2] * math.pi * 2
-            end_angle = (p[2] + p[1]) * math.pi * 2
-            self._draw_segment(letter, level+1, start_angle, end_angle)
-
-        # Draw letters on top of segments so we can read them
         all_letters = []
         for p in parts:
             letter = p[0]
             start_angle = p[2] * math.pi * 2
             end_angle = (p[2] + p[1]) * math.pi * 2
+
             all_letters.append((letter, start_angle, end_angle))
 
+            self._draw_segment(letter, level+1, start_angle, end_angle)
+
+        # Draw letters on top of segments so we can read them
         self._draw_letters(level+1, all_letters)
 
         self.ring_count += 1
