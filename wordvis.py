@@ -159,12 +159,9 @@ class CircleDiagram:
 
         # Calculate cartesian co-ordinates for each letter
         letter_coords = []
-        r = RING_DEPTH * (level + 0.5)
-        for l in all_letters:
-            letter = l[0]
-            start_angle = l[1]
-            end_angle = l[2]
-            x, y = self._calc_coords(r, (start_angle + end_angle) / 2)
+        radius = RING_DEPTH * (level + 0.5)
+        for letter, start_angle, end_angle in all_letters:
+            x, y = self._calc_coords(radius, (start_angle + end_angle) / 2)
             x -= 4 * SCALE
             y += 4 * SCALE
 
@@ -182,8 +179,7 @@ class CircleDiagram:
             return True
 
         # O(n^2) performance blackspot here, but still runs fine for largest inputs so leaving
-        for values in letter_coords:
-            letter, _, x, y = values
+        for letter, _, x, y in letter_coords:
             if is_room(x, y):
                 self.svg.add_text(letter.upper(), x, y)
                 occupied.append((x,y))
