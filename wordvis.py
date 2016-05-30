@@ -35,15 +35,15 @@ Copyright 2016 Rob Dawson
 
 START = '^'
 END = '$'
+SCALE = 1 # To produce a larger chart, but keep everything in proportion, increase this value
 LINE_COLOUR = 'white'
 FONT_COLOUR = '#555555'
-FONT_SIZE = '10px'
-FONT_NAME = 'Arial'
+FONT_SIZE = str(10 * SCALE) + 'px'
+FONT_NAME = 'Helvetica'
 COLOUR_LIGHTNESS = 0.85
 MAX_RINGS = 12
-RING_DEPTH = 100
-LETTER_SPACING = 10   # smaller values will result in more letters on the chart
-
+RING_DEPTH = 100 * SCALE
+LETTER_SPACING = 10 * SCALE
 
 class Node:
     def __init__(self, letter):
@@ -154,18 +154,40 @@ class CircleDiagram:
 
         self.svg.add_segment(letter, start_x1, start_y1, end_x1, end_y1, start_x2, start_y2, end_x2, end_y2, r1, r2)
 
-    def _draw_letter(self, letter, level, start_angle, end_angle):
-        r1 = RING_DEPTH * level
-        r2 = RING_DEPTH * (level + 1)
+    def _draw_letters(self, level, all_letters):
+        # Draw as many letters as we can without overlapping them.
 
-        letter_x, letter_y = self._calc_coords((r1 + r2) / 2, (start_angle + end_angle) / 2)
-        letter_x -= 4
-        letter_y += 5
+        # Calculate cartesian co-ordinates for each letter
+        letter_coords = []
+        r = RING_DEPTH * (level + 0.5)
+        for l in all_letters:
+            letter = l[0]
+            start_angle = l[1]
+            end_angle = l[2]
+            x, y = self._calc_coords(r, (start_angle + end_angle) / 2)
+            x -= 4 * SCALE
+            y += 4 * SCALE
 
-        dist = ((letter_x - self.last_letter_pos[0]) ** 2 + (letter_y - self.last_letter_pos[1]) ** 2) ** 0.5
-        if dist > LETTER_SPACING:
-            self.last_letter_pos = (letter_x, letter_y)
-            self.svg.add_text(letter.upper(), letter_x, letter_y)
+            letter_coords.append((letter, end_angle - start_angle, x, y))
+
+        # Sort letter coordinates by size of the associated segment (largest first)
+        letter_coords.sort(key=lambda n: n[1], reverse=True)
+        occupied = []
+
+        def is_room(x,y):
+            for o in occupied:
+                ox, oy = o
+                if ((ox-x)**2 + (oy-y)**2) < LETTER_SPACING**2:
+                    return False
+            return True
+
+        # O(n^2) performance blackspot here, but still runs fine for largest inputs so leaving
+        for values in letter_coords:
+            letter, _, x, y = values
+            if is_room(x, y):
+                self.svg.add_text(letter.upper(), x, y)
+                occupied.append((x,y))
+
 
     def add_ring(self, parts):
         level = self.ring_count
@@ -178,11 +200,14 @@ class CircleDiagram:
             self._draw_segment(letter, level+1, start_angle, end_angle)
 
         # Draw letters on top of segments so we can read them
+        all_letters = []
         for p in parts:
             letter = p[0]
             start_angle = p[2] * math.pi * 2
             end_angle = (p[2] + p[1]) * math.pi * 2
-            self._draw_letter(letter, level+1, start_angle, end_angle)
+            all_letters.append((letter, start_angle, end_angle))
+
+        self._draw_letters(level+1, all_letters)
 
         self.ring_count += 1
 
