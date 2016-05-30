@@ -42,7 +42,7 @@ FONT_NAME = 'Arial'
 COLOUR_LIGHTNESS = 0.85
 MAX_RINGS = 12
 RING_DEPTH = 100
-LETTER_SPACING = 0.05   # smaller values will result in more letters on the chart
+LETTER_SPACING = 10   # smaller values will result in more letters on the chart
 
 
 class Node:
@@ -129,6 +129,7 @@ class CircleDiagram:
         self.ring_count = 0
         self.svg = svg
         self.center = (size/2, size/2)
+        self.last_letter_pos = (0,0)
 
         for letter in 'abcdefghijklmnopqrstuvwxyz':
             svg.add_styles('.' + letter, {'fill' : self._colour_for_letter(letter), 'stroke' : LINE_COLOUR})
@@ -158,8 +159,13 @@ class CircleDiagram:
         r2 = RING_DEPTH * (level + 1)
 
         letter_x, letter_y = self._calc_coords((r1 + r2) / 2, (start_angle + end_angle) / 2)
+        letter_x -= 4
+        letter_y += 5
 
-        self.svg.add_text(letter.upper(), letter_x-2, letter_y+3)
+        dist = ((letter_x - self.last_letter_pos[0]) ** 2 + (letter_y - self.last_letter_pos[1]) ** 2) ** 0.5
+        if dist > LETTER_SPACING:
+            self.last_letter_pos = (letter_x, letter_y)
+            self.svg.add_text(letter.upper(), letter_x, letter_y)
 
     def add_ring(self, parts):
         level = self.ring_count
@@ -176,8 +182,7 @@ class CircleDiagram:
             letter = p[0]
             start_angle = p[2] * math.pi * 2
             end_angle = (p[2] + p[1]) * math.pi * 2
-            if (end_angle - start_angle) * (level+1) > LETTER_SPACING:
-                self._draw_letter(letter, level+1, start_angle, end_angle)
+            self._draw_letter(letter, level+1, start_angle, end_angle)
 
         self.ring_count += 1
 
