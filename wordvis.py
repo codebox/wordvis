@@ -1,5 +1,4 @@
 from __future__ import division
-import svgwrite
 import math
 import colorsys
 import sys
@@ -18,6 +17,10 @@ THE	53097401461
 OF	30966074232
 AND	22632024504
 TO	19347398077
+
+A correctly formatted file containing about 100,000 words can be found at:
+
+    http://norvig.com/google-books-common-words.txt
 
 To run the utility supply the path to the word file, and the path to the svg file as follows:
 
@@ -76,12 +79,61 @@ class Tree:
         add_chars(self.root, word, count)
 
 
+class Svg:
+    def __init__(self, height, width):
+        self.template = open('template.svg').read().replace('%height%', str(height)).replace('%width%', str(width))
+        self.styles = []
+        self.content = []
+
+    def add_styles(self, selector, styles):
+        styles_txt = []
+        for k,v in styles.iteritems():
+            styles_txt.append('{0}:{1};'.format(k,v))
+
+        self.styles.append('{0}{{{1}}}'.format(selector,''.join(styles_txt)))
+
+    def add_text(self, text, x, y):
+        self.content.append('<text x="{0}" y="{1}">{2}</text>'.format(x, y, text))
+
+    def add_path(self, d, clazz):
+        self.content.append('<path d="{0}" class="{1}"/>'.format(d, clazz))
+
+    def add_segment(self, letter, start_x1, start_y1, end_x1, end_y1, start_x2, start_y2, end_x2, end_y2, r1, r2):
+        path = "M{0} {1} A {2} {3}, 0, 0, 1, {4} {5} L {6} {7} A {8} {9}, 0, 0, 0, {10} {11} Z".format(
+            start_x1, start_y1,
+            r1, r1,
+            end_x1, end_y1,
+            end_x2, end_y2,
+            r2, r2,
+            start_x2, start_y2
+        )
+        self.add_path(path, letter)
+
+    def save(self, out_file):
+        part1, tmp = self.template.split('%style%')
+        part2, part3 = tmp.split('%substance%')
+
+        f=open(out_file, 'w')
+        f.write(part1)
+        for style in self.styles:
+            f.write(style)
+        f.write(part2)
+        for content in self.content:
+            f.write(content)
+        f.write(part3)
+        f.close()
+
+
 class CircleDiagram:
-    def __init__(self, svg_file):
+    def __init__(self, svg):
         self.ring_count = 0
-        size = MAX_RINGS * RING_DEPTH * 2
-        self.dwg = svgwrite.Drawing(svg_file, profile='tiny', size=(size, size))
+        self.svg = svg
         self.center = (size/2, size/2)
+
+        for letter in 'abcdefghijklmnopqrstuvwxyz':
+            svg.add_styles('.' + letter, {'fill' : self._colour_for_letter(letter), 'stroke' : LINE_COLOUR})
+
+        svg.add_styles('text', {'fill':FONT_COLOUR, 'font-family' : FONT_NAME, 'font-size' : FONT_SIZE})
 
     def _colour_for_letter(self, letter):
         rgb = colorsys.hls_to_rgb((ord(letter) - ord('a')) / 26, COLOUR_LIGHTNESS, 1)
@@ -91,8 +143,6 @@ class CircleDiagram:
         return self.center[0] + math.sin(a) * r, self.center[1] + -math.cos(a) * r
 
     def _draw_segment(self, letter, level, start_angle, end_angle):
-        d = self.dwg
-
         r1 = RING_DEPTH * level
         r2 = RING_DEPTH * (level + 1)
 
@@ -101,24 +151,15 @@ class CircleDiagram:
         end_x1, end_y1 = self._calc_coords(r1, end_angle)
         end_x2, end_y2 = self._calc_coords(r2, end_angle)
 
-        d.add(d.path(d="M{0} {1} A {2} {3}, 0, 0, 1, {4} {5} L {6} {7} A {8} {9}, 0, 0, 0, {10} {11} Z".format(
-                start_x1, start_y1,
-                r1, r1,
-                end_x1, end_y1,
-                end_x2, end_y2,
-                r2, r2,
-                start_x2, start_y2
-            ), fill=self._colour_for_letter(letter), stroke=LINE_COLOUR))
+        self.svg.add_segment(letter, start_x1, start_y1, end_x1, end_y1, start_x2, start_y2, end_x2, end_y2, r1, r2)
 
     def _draw_letter(self, letter, level, start_angle, end_angle):
-        d = self.dwg
-
         r1 = RING_DEPTH * level
         r2 = RING_DEPTH * (level + 1)
 
         letter_x, letter_y = self._calc_coords((r1 + r2) / 2, (start_angle + end_angle) / 2)
-        d.add(d.text(letter.upper(), insert=(letter_x-2, letter_y+3),
-                     font_size=FONT_SIZE, fill=FONT_COLOUR, font_family=FONT_NAME))
+
+        self.svg.add_text(letter.upper(), letter_x-2, letter_y+3)
 
     def add_ring(self, parts):
         level = self.ring_count
@@ -140,8 +181,8 @@ class CircleDiagram:
 
         self.ring_count += 1
 
-    def save(self):
-        self.dwg.save()
+    def save(self, svg_file):
+        self.svg.save(svg_file)
 
 
 class Rings:
@@ -186,10 +227,12 @@ for line in open(word_file).readlines():
     word, count = line.split('\t')
     tree.add(word.lower().strip(), int(count))
 
-rings = Rings(tree)
-diagram = CircleDiagram(svg_file)
+size = MAX_RINGS * RING_DEPTH * 2
+svg = Svg(size, size)
+diagram = CircleDiagram(svg)
 
+rings = Rings(tree)
 for ring in rings.get():
     diagram.add_ring(ring)
 
-diagram.save()
+diagram.save(svg_file)
