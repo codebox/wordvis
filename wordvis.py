@@ -30,7 +30,7 @@ To run the utility supply the path to the word file, and the path to the svg fil
 Copyright 2016 Rob Dawson
 
     https://github.com/codebox/wordvis
-    http://codebox.org.uk/pages/word-visualiser
+    http://codebox.org.uk/pages/common-english-words-visualisation
 '''
 
 START = '^'
