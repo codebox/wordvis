@@ -36,7 +36,7 @@ Copyright 2016 Rob Dawson
 
 START = '^'
 END = '$'
-SCALE = 1 # To produce a larger chart, but keep everything in proportion, increase this value
+SCALE = 1  # To produce a larger chart, but keep everything in proportion, increase this value
 LINE_COLOUR = 'white'
 FONT_COLOUR = '#555555'
 FONT_SIZE = str(10 * SCALE) + 'px'
@@ -45,6 +45,8 @@ COLOUR_LIGHTNESS = 0.85
 MAX_RINGS = 20
 RING_DEPTH = 100 * SCALE
 LETTER_SPACING = 10 * SCALE
+ENCODING = 'utf-8'
+
 
 class Node:
     def __init__(self, letter):
@@ -90,10 +92,10 @@ class Svg:
 
     def add_styles(self, selector, styles):
         styles_txt = []
-        for k,v in styles.iteritems():
-            styles_txt.append(u'{0}:{1};'.format(k,v))
+        for k, v in styles.iteritems():
+            styles_txt.append(u'{0}:{1};'.format(k, v))
 
-        self.styles.append(u'{0}{{{1}}}'.format(selector,''.join(styles_txt)))
+        self.styles.append(u'{0}{{{1}}}'.format(selector, ''.join(styles_txt)))
 
     def add_text(self, text, x, y):
         self.content.append(u'<text x="{0}" y="{1}">{2}</text>'.format(x, y, text))
@@ -116,7 +118,7 @@ class Svg:
         part1, tmp = self.template.split('%style%')
         part2, part3 = tmp.split('%substance%')
 
-        f=codecs.open(out_file, 'w', encoding='utf-8')
+        f = codecs.open(out_file, 'w', encoding=ENCODING)
         f.write(part1)
         for style in self.styles:
             f.write(style)
@@ -132,14 +134,14 @@ class CircleDiagram:
         self.ring_count = 0
         self.svg = svg
         self.center = (size/2, size/2)
-        self.last_letter_pos = (0,0)
+        self.last_letter_pos = (0, 0)
         self.letters = letters
         self.letter_colours = dict(zip(self.letters, map(self._colour_for_letter, self.letters)))
 
         for letter in letters:
-            svg.add_styles('.' + letter, {'fill' : self._colour_for_letter(letter), 'stroke' : LINE_COLOUR})
+            svg.add_styles('.' + letter, {'fill': self._colour_for_letter(letter), 'stroke': LINE_COLOUR})
 
-        svg.add_styles('text', {'fill':FONT_COLOUR, 'font-family' : FONT_NAME, 'font-size' : FONT_SIZE})
+        svg.add_styles('text', {'fill': FONT_COLOUR, 'font-family': FONT_NAME, 'font-size': FONT_SIZE})
 
     def _colour_for_letter(self, letter):
         letter_index = self.letters.index(letter)
@@ -178,7 +180,7 @@ class CircleDiagram:
         letter_coords.sort(key=lambda n: n[1], reverse=True)
         occupied = []
 
-        def is_room(x,y):
+        def is_room(x, y):
             for o in occupied:
                 ox, oy = o
                 if ((ox-x)**2 + (oy-y)**2) < LETTER_SPACING**2:
@@ -189,8 +191,7 @@ class CircleDiagram:
         for letter, _, x, y in letter_coords:
             if is_room(x, y):
                 self.svg.add_text(letter.upper(), x, y)
-                occupied.append((x,y))
-
+                occupied.append((x, y))
 
     def add_ring(self, parts):
         level = self.ring_count
@@ -253,7 +254,7 @@ word_file = args[1]
 svg_file = args[2]
 
 tree = Tree()
-for line in codecs.open(word_file, encoding='utf-8').readlines():
+for line in codecs.open(word_file, encoding=ENCODING).readlines():
     word, count = line.split('\t')
     tree.add(word.lower().strip(), int(count))
 
