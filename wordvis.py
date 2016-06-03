@@ -2,6 +2,7 @@ from __future__ import division
 import math
 import colorsys
 import sys
+import codecs
 
 '''
 Word Visualiser
@@ -90,18 +91,18 @@ class Svg:
     def add_styles(self, selector, styles):
         styles_txt = []
         for k,v in styles.iteritems():
-            styles_txt.append('{0}:{1};'.format(k,v))
+            styles_txt.append(u'{0}:{1};'.format(k,v))
 
-        self.styles.append('{0}{{{1}}}'.format(selector,''.join(styles_txt)))
+        self.styles.append(u'{0}{{{1}}}'.format(selector,''.join(styles_txt)))
 
     def add_text(self, text, x, y):
-        self.content.append('<text x="{0}" y="{1}">{2}</text>'.format(x, y, text))
+        self.content.append(u'<text x="{0}" y="{1}">{2}</text>'.format(x, y, text))
 
     def add_path(self, d, clazz):
-        self.content.append('<path d="{0}" class="{1}"/>'.format(d, clazz))
+        self.content.append(u'<path d="{0}" class="{1}"/>'.format(d, clazz))
 
     def add_segment(self, letter, start_x1, start_y1, end_x1, end_y1, start_x2, start_y2, end_x2, end_y2, r1, r2):
-        path = "M{0} {1} A {2} {3}, 0, 0, 1, {4} {5} L {6} {7} A {8} {9}, 0, 0, 0, {10} {11} Z".format(
+        path = u'M{0} {1} A {2} {3}, 0, 0, 1, {4} {5} L {6} {7} A {8} {9}, 0, 0, 0, {10} {11} Z'.format(
             start_x1, start_y1,
             r1, r1,
             end_x1, end_y1,
@@ -115,7 +116,7 @@ class Svg:
         part1, tmp = self.template.split('%style%')
         part2, part3 = tmp.split('%substance%')
 
-        f=open(out_file, 'w')
+        f=codecs.open(out_file, 'w', encoding='utf-8')
         f.write(part1)
         for style in self.styles:
             f.write(style)
@@ -252,7 +253,7 @@ word_file = args[1]
 svg_file = args[2]
 
 tree = Tree()
-for line in open(word_file).readlines():
+for line in codecs.open(word_file, encoding='utf-8').readlines():
     word, count = line.split('\t')
     tree.add(word.lower().strip(), int(count))
 
