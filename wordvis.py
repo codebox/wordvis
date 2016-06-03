@@ -62,6 +62,7 @@ class EndNode:
 class Tree:
     def __init__(self):
         self.root = Node(START)
+        self.letters = set()
 
     def add(self, word, count):
         def add_chars(parent_node, chars, count):
@@ -76,6 +77,7 @@ class Tree:
 
             add_chars(parent_node.children[first_letter], chars[1:], count)
 
+        self.letters.update(list(word))
         add_chars(self.root, word, count)
 
 
@@ -125,19 +127,23 @@ class Svg:
 
 
 class CircleDiagram:
-    def __init__(self, svg):
+    def __init__(self, svg, letters):
         self.ring_count = 0
         self.svg = svg
         self.center = (size/2, size/2)
         self.last_letter_pos = (0,0)
+        self.letters = letters
+        self.letter_colours = dict(zip(self.letters, map(self._colour_for_letter, self.letters)))
 
-        for letter in 'abcdefghijklmnopqrstuvwxyz':
+        for letter in letters:
             svg.add_styles('.' + letter, {'fill' : self._colour_for_letter(letter), 'stroke' : LINE_COLOUR})
 
         svg.add_styles('text', {'fill':FONT_COLOUR, 'font-family' : FONT_NAME, 'font-size' : FONT_SIZE})
 
     def _colour_for_letter(self, letter):
-        rgb = colorsys.hls_to_rgb((ord(letter) - ord('a')) / 26, COLOUR_LIGHTNESS, 1)
+        letter_index = self.letters.index(letter)
+        letter_count = len(self.letters)
+        rgb = colorsys.hls_to_rgb(letter_index / letter_count, COLOUR_LIGHTNESS, 1)
         return '#' + ''.join('%02x' % i for i in map(lambda x: x * 255, rgb))
 
     def _calc_coords(self, r, a):
@@ -252,7 +258,7 @@ for line in open(word_file).readlines():
 
 size = MAX_RINGS * RING_DEPTH * 2
 svg = Svg(size, size)
-diagram = CircleDiagram(svg)
+diagram = CircleDiagram(svg, sorted(tree.letters))
 
 rings = Rings(tree)
 for ring in rings.get():
